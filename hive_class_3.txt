@@ -1,0 +1,103 @@
+# Storing raw data in hdfs location
+hdfs dfs -copyFromLocal sales_order_data.csv  /tmp
+ 
+# Creating internal hive table as sales_order_csv
+
+CREATE TABLE sales_order_csv (
+ORDERNUMBER INT,
+QUANTITYORDERED INT,
+PRICEEACH FLOAT,
+ORDERLINENUMBER INT ,
+SALES FLOAT,
+STATUS STRING,
+QTR_ID INT,
+MONTH_ID INT,
+YEAR_ID INT,
+PRODUCTLINE STRING,
+MSRP INT,
+PRODUCTCODE VARCHAR(100),
+PHONE INT,
+CITY STRING,
+STATE STRING,
+POSTALCODE INT,
+COUNTRY STRING,
+TERRITORY STRING,
+CONTACTLASTNAME STRING,
+CONTACTFIRSTNAME STRING,
+DEALSIZE STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+TBLPROPERTIES("skip.header.line.count"="1");
+
+# Loading data into sales_order_csv
+
+LOAD  DATA INPATH '/tmp/sales_order_data.csv' INTO TABLE sales_order_orc;
+
+# Creating table sales_order_orc 
+
+CREATE TABLE sales_order_orc (
+ORDERNUMBER INT,
+QUANTITYORDERED INT,
+PRICEEACH FLOAT,
+ORDERLINENUMBER INT ,
+SALES FLOAT,
+STATUS STRING,
+QTR_ID INT,
+MONTH_ID INT,
+YEAR_ID INT,
+PRODUCTLINE STRING,
+MSRP INT,
+PRODUCTCODE VARCHAR(100),
+PHONE INT,
+CITY STRING,
+STATE STRING,
+POSTALCODE INT,
+COUNTRY STRING,
+TERRITORY STRING,
+CONTACTLASTNAME STRING,
+CONTACTFIRSTNAME STRING,
+DEALSIZE STRING
+)
+STORED AS orc;
+
+
+# 2nd Method to create table sales_order_orc
+
+CREATE TABLE sales_order_orc STORED AS orc AS SELECT * FROM sales_order_csv;
+
+
+
+# 1st question
+SELECT year_id, sum(sales) FROM sales_order_orc GROUP BY year_id;
+
+SELECT year_id, sum(sales) FROM sales_order_orc GROUP BY year_id;
+# 2nd question
+SELECT productline,count(DISTINCT ordernumber)AS max_product_sales FROM sales_order_orc GROUP BY productline ORDER BY max_product_sales DESC LIMIT 1;
+
+# 3rd question
+SELECT qtr_id, sum(sales) As quater_sales  FROM sales_order_orc GROUP BY qtr_id;
+
+# 4th question
+
+SELECT qtr_id,sum(sales) AS total_sales  FROM sales_order_orc GROUP BY qtr_id ORDER BY total_sales LIMIT 1;
+
+# 5th  Question
+WITH cte as
+(SELECT country,sum(sales)AS total_sales FROM sales_order_orc GROUP BY(country))
+SELECT country,total_sales FROM cte WHERE total_sales=(SELECT min(total_sales) FROM cte)
+UNION
+SELECT country,total_sales FROM cte WHERE total_sales=(SELECT max(total_sales) FROM cte)
+
+
+
+# 6th  Question
+SELECT city,qtr_id,sum(sales) FROM sales_order_orc GROUP BY city,qtr_id 
+
+# 7th Question
+WITH cte as(
+SELECT year_id,month_id, sum(quantityordered) As month_quantity  
+FROM sales_order_orc GROUP BY year_id,month_id ORDER BY year_id,month_quantity DESC),
+cte_2 as(
+SELECT year_id,month_id,month_quantity,rank() over (partition by year_id order by month_quantity desc) as rnk from cte) 
+SELECT year_id,month_id,month_quantity from cte_2 where rnk=1;
