@@ -1,1 +1,3 @@
 # Hive
+
+Hive queries
